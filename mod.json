@@ -1,9 +1,9 @@
 {
-    "displayName": "Mod Template",
-    "description": "Mindustry Java mod template, complete with EntityAnno and syntax downgrader integration.",
-    "version": "v1.0",
+    "displayName": "Nodes",
+    "description": "Reimagining the Logic System",
+    "version": "v0",
     "minGameVersion": "146",
-    "author": "You",
+    "author": "Goober",
     "java": true,
-    "main": "template.ModTemplate"
+    "main": "nodes.Nodes"
 }
