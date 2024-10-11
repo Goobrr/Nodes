@@ -10,3 +10,8 @@ build/
 .idea/
 .vscode/
 .kateproject
+
+# Assets
+*.pal
+*.aseprite
+*.ase

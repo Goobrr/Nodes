@@ -17,23 +17,28 @@ import mindustry.game.*;
 import mindustry.gen.*;
 import mindustry.graphics.*;
 import mindustry.ui.*;
+import nodes.*;
 import nodes.node.*;
 import nodes.world.blocks.*;
 
 public class NodeOverlay {
-    public static Table main;
-    public static Seq<NodeBlock.NodeBuild> buildings = new Seq<>();
-    public static ObjectMap<NodeBlock.NodeBuild, NodeTable> nodeTables = new ObjectMap<>();
+    public static Table main, debug;
+    public static Seq<Building> buildings = new Seq<>();
+    public static ObjectMap<Integer, NodeTable> nodeTables = new ObjectMap<>();
+    public static boolean hudWasShown;
 
     public static Connector connecting;
 
     public static void build(Group parent){
         // blueprint overlays + background
-        parent.addChild(new Table(t -> {
-            t.setBackground(Styles.black5);
+
+        parent.addChildBefore(parent.find("paused"), new Table(t -> {
+            t.name = "Background";
+            t.setBackground(Styles.black8);
             t.setFillParent(true);
             t.visible(() -> main.visible);
         }){
+
             @Override
             public void draw() {
                 super.draw();
@@ -41,10 +46,25 @@ public class NodeOverlay {
                 Tmp.m1.set(Draw.proj());
                 Draw.proj(Core.camera);
 
-                Draw.color(Color.white);
+                Draw.color(Tmp.c1.set(86, 86, 102));
+                Draw.alpha(0.3f);
 
-                for(NodeBlock.NodeBuild building : buildings){
-                    building.drawBlueprint();
+                float camX = Core.camera.position.x - Core.camera.width / 2f;
+                float camY = Core.camera.position.y - Core.camera.height / 2f;
+
+                float offsetX = camX % 32f;
+                float offsetY = camY % 32f;
+
+                for(int x = 0; x < Core.camera.width + 64; x += 32){
+                    for(int y = 0; y < Core.camera.height + 64; y += 32){
+                        Draw.rect("nodes-edit-grid", camX + x + 12 - offsetX - 32, camY + y + 12 - offsetY - 32);
+                    }
+                }
+
+                Draw.alpha(1f);
+
+                for(Building building : buildings){
+                    if(building instanceof NodeComp n) n.drawBlueprint();
                 }
 
                 Draw.proj(Tmp.m1);
@@ -54,6 +74,7 @@ public class NodeOverlay {
 
         // Nodes
         parent.fill(t -> {
+            t.name = "Main";
             main = t;
 
             t.update(() -> {
@@ -66,12 +87,50 @@ public class NodeOverlay {
 
         // buttons and shit
         parent.fill(t -> {
+            t.name = "Overlay";
             t.touchable(() -> Touchable.childrenOnly);
             t.visible(() -> main.visible);
             t.left().bottom();
-            t.margin(10f);
+            t.margin(30f);
 
-            t.button("Back", Icon.exit, NodeOverlay::hide).width(100f);
+            t.table(r -> {
+                r.bottom().left();
+                r.table(b -> {
+                    b.setBackground(Tex.whiteui);
+                    b.setColor(Pal.darkestGray);
+                    b.touchable(() -> Touchable.enabled);
+                    b.hovered(() -> b.setColor(Pal.darkerGray));
+                    b.exited(() -> b.setColor(Pal.darkestGray));
+                    b.clicked(NodeOverlay::hide);
+                    b.margin(10f);
+
+                    b.image(Icon.exit).left().size(40f).padLeft(10f);
+                    b.label(() -> Core.bundle.get("nodes.overlay.exit")).center().right().growX().get().setAlignment(Align.center);
+
+                }).expand().width(200f).bottom().left().padRight(15f);
+
+                r.table(b -> {
+                    b.setBackground(Tex.whiteui);
+                    b.setColor(Pal.darkestGray);
+                    b.touchable(() -> Touchable.enabled);
+                    b.hovered(() -> b.setColor(Pal.darkerGray));
+                    b.exited(() -> b.setColor(Pal.darkestGray));
+                    b.clicked(() -> {
+                        debug.visible(() -> !debug.visible);
+                        Nodes.debug = !Nodes.debug;
+                    });
+                    b.margin(10f);
+
+                    b.image(Icon.terminal).left().size(40f).padLeft(10f);
+                    b.label(() -> Core.bundle.get("nodes.overlay.debug")).center().right().growX().get().setAlignment(Align.center);
+
+                }).expand().width(200f).bottom().left();
+            }).expand().bottom().left();
+        });
+
+        parent.fill(t -> {
+            debug = t;
+            t.visible(() -> Nodes.debug);
         });
 
         main.touchable(() -> Touchable.enabled);
@@ -88,37 +147,44 @@ public class NodeOverlay {
     }
 
     public static void show(){
-        Log.info("Shown");
+        Log.debug("Node Overlay Shown");
+
         main.visible(() -> true);
+        hudWasShown = Vars.ui.hudfrag.shown;
+        Vars.ui.hudfrag.shown = false;
     }
 
     public static void hide(){
+        Log.debug("Node Overlay Hidden");
         main.visible(() -> false);
+        Vars.ui.hudfrag.shown = hudWasShown;
     }
 
-    public static void addBuilding(NodeBlock.NodeBuild b){
-        buildings.add(b);
-        Table t = b.buildNodeTable();
+    public static void add(Building b){
+        if(b instanceof NodeComp n){
+            buildings.add(b);
+            Table t = n.buildNodeTable(b, n.nodes());
 
-        main.add(t).expand();
+            main.add(t).expand();
 
-        nodeTables.put(b, new NodeTable(b, t));
+            nodeTables.put(b.id, new NodeTable(b, t));
 
-        Log.info("Added building");
+            Log.debug("Added building " + b);
+        }
     }
 
-    public static void removeBuilding(NodeBlock.NodeBuild b){
+    public static void remove(Building b){
         buildings.remove(b);
-
-        main.removeChild(nodeTables.get(b).table);
-        nodeTables.remove(b);
+        nodeTables.get(b.id).table.clearChildren();
+        main.removeChild(nodeTables.get(b.id).table);
+        nodeTables.remove(b.id);
     }
 
     public static class NodeTable {
         public Table table;
-        public NodeBlock.NodeBuild build;
+        public Building build;
 
-        public NodeTable(NodeBlock.NodeBuild build, Table table){
+        public NodeTable(Building build, Table table){
             this.table = table;
             this.build = build;
         }
@@ -131,7 +197,7 @@ public class NodeOverlay {
         public Node node;
         public Connector(Node node){
             this.node = node;
-            this.setZIndex(100);
+            this.toFront();
 
             addCaptureListener(new InputListener(){
                 int conPointer = -1;
@@ -169,12 +235,12 @@ public class NodeOverlay {
 
                     Vec2 pos = Connector.this.localToAscendantCoordinates(main, Tmp.v1.set(x, y));
                     if(main.hit(pos.x, pos.y, true) instanceof Connector con && con.node != null){
-                        if(con.node.build.id == node.build.id){
+                        if(con.node.build.id() == node.build.id()){
                             connecting = null;
                             return;
                         }
 
-                        if(con.node.sources.contains(node) || con.node.targets.contains(node)){
+                        if(con.node.sources.contains(n -> n.id == node.id) || con.node.targets.contains(n -> n.id == node.id)){
                             node.disconnect(con.node);
                         }else{
                             node.connect(con.node);
@@ -192,6 +258,9 @@ public class NodeOverlay {
         public void draw() {
             validate();
 
+            Draw.sort(true);
+            Draw.z(100);
+
             boolean disconnecting = targetNode != null && (targetNode.sources.contains(node) || targetNode.targets.contains(node));
             boolean invalid = targetNode != null && (targetNode.build == node.build || targetNode.in == node.in);
 
@@ -199,28 +268,35 @@ public class NodeOverlay {
             float cy = y + width / 2f;
 
             Draw.color(Pal.accent);
-            Lines.stroke(3f, Pal.accent);
+            Lines.stroke(4f, Pal.accent);
 
             Fill.square(cx, cy, 9f, 45f);
 
             for(Node target : node.targets){
-                Table connectors = nodeTables.get(target.build).table.find("Connectors");
-                Connector targetConnector = connectors.find(String.valueOf(target.index));
+                NodeTable tab = nodeTables.get(target.build.id);
+                if(tab != null) {
+                    Table connectors = tab.table.find("Connectors");
+                    Connector targetConnector = connectors.find(String.valueOf(target.index));
 
-                Vec2 pos = targetConnector.localToAscendantCoordinates(main, Tmp.v1.set(targetConnector.width / 2f, targetConnector.height / 2f).add(main.x, main.y));
-                Lines.line(cx, cy, pos.x, pos.y);
-                Fill.square(pos.x, pos.y, 7.5f, 45f);
+                    Vec2 pos = targetConnector.localToAscendantCoordinates(main, Tmp.v1.set(targetConnector.width / 2f, targetConnector.height / 2f).add(main.x, main.y));
+                    float progress = Interp.pow3.apply((Time.time % (60 * 4)) / (60 * 4));
+
+                    Lines.line(cx, cy, pos.x, pos.y);
+                    Fill.circle(Mathf.lerp(cx, pos.x, progress), Mathf.lerp(cy, pos.y, progress), 6f);
+
+                    //DrawUtils.drawCurve(Draw.getColor(), cx, cy, pos.x, pos.y);
+                }
             }
 
             if(connecting == this){
                 if(disconnecting){
                     Draw.color(Pal.remove);
-                    Lines.stroke(3f, Pal.remove);
+                    Lines.stroke(4f, Pal.remove);
                 }
 
                 if(invalid){
                     Draw.color(Pal.lightishGray);
-                    Lines.stroke(3f, Pal.lightishGray);
+                    Lines.stroke(4f, Pal.lightishGray);
                 }
 
                 Fill.square(cx, cy, 9f, 45f);
@@ -237,72 +313,10 @@ public class NodeOverlay {
                 Draw.color(Pal.darkerGray);
                 Fill.square(cx, cy, 6f, 45f);
             }
-        }
 
-        public void old_draw(){
-            validate();
+            if(Nodes.debug) DrawUtils.text(cx, cy, false, Color.white, "" + node.id, 2);
 
-            float oldz = Draw.z();
-            Draw.z(95);
-
-            boolean dc = targetNode != null && (targetNode.sources.contains(node) || targetNode.targets.contains(node));
-            boolean valid = targetNode != null && (targetNode.build != node.build && targetNode.in != node.in);
-
-            float cx = x + width / 2f;
-            float cy = y + height / 2f;
-
-            Lines.stroke(3f, Pal.accent);
-            Lines.square(cx, cy, 9f, 45f);
-
-            if(!node.in && node.targets.isEmpty() && connecting != this){
-                Fill.square(cx, cy, 7.5f, 45f);
-            }
-
-            if(targetNode != null && !valid && connecting == this) {
-                Lines.stroke(3f, Pal.lightishGray);
-                Draw.color(Pal.lightishGray);
-            }
-
-            if(dc){
-                Lines.stroke(3f, Pal.remove);
-                Draw.color(Pal.remove);
-            }else if(connecting == this){
-                Lines.line(cx, cy, x + pointX, y + pointY);
-                Fill.square(x + pointX, y + pointY, 6f, 45f);
-            }
-
-            if(targetNode != null && !valid && connecting == this){
-                Draw.rect(Core.atlas.find("nodes-invalid"), Mathf.lerp(cx, x + pointX, 0.5f), Mathf.lerp(cy, y + pointY, 0.5f));
-                Lines.stroke(3f, Pal.accent);
-                Draw.color(Pal.accent);
-            }
-
-            for(Node target : node.targets){
-                Table connectors = nodeTables.get(target.build).table.find("Connectors");
-                Connector targetConnector = connectors.find(String.valueOf(target.index));
-
-                if(dc && targetNode == targetConnector.node){
-                    Lines.stroke(3f, Pal.remove);
-                    Draw.color(Pal.remove);
-                }else{
-                    Lines.stroke(3f, Pal.accent);
-                    Draw.color(Pal.accent);
-
-
-                }
-
-                targetConnector.validate();
-                Vec2 pos = targetConnector.localToAscendantCoordinates(main, Tmp.v1.set(targetConnector.width / 2f, targetConnector.height / 2f).add(main.x, main.y));
-                Lines.line(cx, cy, pos.x, pos.y);
-                Fill.square(pos.x, pos.y, 7.5f, 45f);
-
-                if(dc && targetNode == targetConnector.node){
-                    Draw.rect(Core.atlas.find("nodes-disconnect"), Mathf.lerp(cx, pos.x, 0.5f), Mathf.lerp(cy, pos.y, 0.5f));
-                }
-            }
-
-            Draw.flush();
-            Draw.z(oldz);
+            Draw.sort(false);
         }
     }
 }
