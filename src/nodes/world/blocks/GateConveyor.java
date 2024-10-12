@@ -22,6 +22,7 @@ public class GateConveyor extends ArmoredConveyor {
         super(name);
 
         logicConfigurable = false;
+        configurable = true;
     }
 
     public void addNode(boolean in, String name, Func<Node, Float> func){
@@ -86,6 +87,11 @@ public class GateConveyor extends ArmoredConveyor {
 
             Draw.color(enabled ? Pal.heal : Pal.remove);
             Draw.rect(block.name + "-light", x, y, rotation * 90f);
+        }
+
+        @Override
+        public void drawBlueprint() {
+            Draw.rect(block.name + "-blueprint", x, y, rotation * 90f);
         }
 
         @Override

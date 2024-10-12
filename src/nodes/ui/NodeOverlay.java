@@ -7,6 +7,7 @@ import arc.input.*;
 import arc.math.*;
 import arc.math.geom.*;
 import arc.scene.*;
+import arc.scene.actions.*;
 import arc.scene.event.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
@@ -79,6 +80,8 @@ public class NodeOverlay {
 
             t.update(() -> {
                 for(NodeTable n : nodeTables.values().toSeq()){
+                    //float scl = Vars.renderer.getDisplayScale() / 5f;
+                    //n.table.setScale(scl);
                     Vec2 pos = Core.input.mouseScreen(n.build.x, n.build.y - n.build.block.size * Vars.tilesize / 2f - 1.5f);
                     n.table.setPosition(pos.x, pos.y, Align.top);
                 }
@@ -183,8 +186,9 @@ public class NodeOverlay {
     public static class NodeTable {
         public Table table;
         public Building build;
+        public boolean shown;
 
-        public NodeTable(Building build, Table table){
+        public NodeTable(Building build, Table table) {
             this.table = table;
             this.build = build;
         }
@@ -195,6 +199,7 @@ public class NodeOverlay {
         public Node targetNode;
 
         public Node node;
+
         public Connector(Node node){
             this.node = node;
             this.toFront();

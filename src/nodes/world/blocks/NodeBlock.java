@@ -1,5 +1,6 @@
 package nodes.world.blocks;
 
+import arc.*;
 import arc.func.*;
 import arc.graphics.g2d.*;
 import arc.struct.*;
@@ -42,6 +43,11 @@ public class NodeBlock extends Block{
 
         Draw.rect(baseRegion + (rotate ? "-" + plan.rotation : ""), plan.x, plan.y);
         Draw.rect(overlayRegion, plan.x, plan.y);
+    }
+
+    @Override
+    protected TextureRegion[] icons() {
+        return new TextureRegion[]{Core.atlas.find(baseRegion), Core.atlas.find(overlayRegion)};
     }
 
     public class NodeBuild extends Building implements NodeComp{

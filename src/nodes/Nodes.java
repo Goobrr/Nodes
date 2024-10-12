@@ -31,7 +31,9 @@ public class Nodes extends Mod{
     @Override
     public void loadContent(){
         new NodeBlock("node-sum"){{
-            baseRegion = "nodes-node-addition";
+            baseRegion = "nodes-node-base";
+            blueprintRegion = "nodes-node-math-blueprint";
+            overlayRegion = "nodes-node-addition";
             addNode(false, "sum-output", node -> ((NodeComp) node.build).nodes().get(1).getSignal());
             addNode(true, "sum-input", node -> {
                 float v = 0;
@@ -44,7 +46,9 @@ public class Nodes extends Mod{
         }};
 
         new NodeBlock("node-sub"){{
-            baseRegion = "nodes-node-subtraction";
+            baseRegion = "nodes-node-base";
+            blueprintRegion = "nodes-node-math-blueprint";
+            overlayRegion = "nodes-node-subtraction";
             addNode(true, "sub-input-a", node -> {
                 float v = 0;
                 for(Node source : node.sources){
@@ -67,7 +71,9 @@ public class Nodes extends Mod{
         }};
 
         new NodeBlock("node-multiply"){{
-            baseRegion = "nodes-node-multiply";
+            baseRegion = "nodes-node-base";
+            blueprintRegion = "nodes-node-math-blueprint";
+            overlayRegion = "nodes-node-multiply";
             addNode(true, "multiply-input-a", node -> {
                 float v = 0;
                 for(Node source : node.sources){
@@ -90,7 +96,9 @@ public class Nodes extends Mod{
         }};
 
         new NodeBlock("node-compare"){{
-            baseRegion = "nodes-node-comparison";
+            baseRegion = "nodes-node-base";
+            blueprintRegion = "nodes-node-math-blueprint";
+            overlayRegion = "nodes-node-comparison";
             addNode(true, "compare-input-a", node -> {
                 float v = 0;
                 for(Node source : node.sources){
@@ -103,6 +111,31 @@ public class Nodes extends Mod{
                 return nodes.get(0).getSignal() < nodes.get(2).getSignal() ? 1f : 0f;
             });
             addNode(true, "compare-input-b", node -> {
+                float v = 0;
+                for(Node source : node.sources){
+                    v += source.getSignal();
+                }
+                return v;
+            });
+            requirements(Category.logic, BuildVisibility.sandboxOnly, ItemStack.with(Items.copper, 1));
+        }};
+
+        new NodeBlock("node-divide"){{
+            baseRegion = "nodes-node-base";
+            blueprintRegion = "nodes-node-math-blueprint";
+            overlayRegion = "nodes-node-divide";
+            addNode(true, "divide-input-a", node -> {
+                float v = 0;
+                for(Node source : node.sources){
+                    v += source.getSignal();
+                }
+                return v;
+            });
+            addNode(false, "divide-output", node -> {
+                Seq<Node> nodes = ((NodeComp) node.build).nodes();
+                return nodes.get(0).getSignal() / nodes.get(2).getSignal();
+            });
+            addNode(true, "divide-input-b", node -> {
                 float v = 0;
                 for(Node source : node.sources){
                     v += source.getSignal();
